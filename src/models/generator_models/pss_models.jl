@@ -379,19 +379,14 @@ function mdl_pss_ode!(
     # Xcomp = PSY.get_Xcomp
     # Tcomp = PSY.get_Tcomp
 
-    #Clamp u_1
-    u_1 = clamp(u_1, Vs1_min, Vs1_max)
-
-    #Clamp u_2
-    u_2 = clamp(u_2, Vs2_min, Vs2_max)
+    # Clamp inputs
+    u1 = clamp(u1, Vs1_min, Vs1_max)
+    u2 = clamp(u2, Vs2_min, Vs2_max)
 
     # Compute block derivatives
     y_w_1_1, dxp1_dt = high_pass(u_1, x_p1, Tw1, Tw1)
-
     y_w_2_1, dxp2_dt = high_pass(y_w_1_1, x_p2, Tw2, Tw2)
-
     yt_1, dxp3_dt = low_pass(y_w_2_1, x_p3, 1.0, T6)
-
     y_w_1_2, dxp4_dt = high_pass(u_2, x_p4, Tw3, Tw3)
 
     # Bypass Logic Block for second washout (with time constant Tw4)

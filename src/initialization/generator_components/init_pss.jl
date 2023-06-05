@@ -191,7 +191,18 @@ function initialize_pss!(
     # Get Required Parameters
     M_rtf = PSY.get_M_rtf(pss)
     N_rtf = PSY.get_N_rtf(pss)
+    Vs1_min, Vs1_max = PSY.get_Vs1_lim(pss)
+    Vs2_min, Vs2_max = PSY.get_Vs2_lim(pss)
     Tcomp = PSY.get_Tcomp(pss)
+
+    #Error for inputs outside limits
+    if u_1 < Vs1_min || u_1 > Vs1_max
+        error("First input for PSS $(PSY.get_name(dynamic_device)) is outside the limits")
+    end
+
+    if u_2 < Vs2_min || u_2 > Vs2_max
+        error("Second input for PSS $(PSY.get_name(dynamic_device)) is outside the limits")
+    end
 
     #Error non-valid parameters
     if M_rtf * N_rtf > 8
