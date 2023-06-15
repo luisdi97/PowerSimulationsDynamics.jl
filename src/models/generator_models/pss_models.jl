@@ -376,8 +376,7 @@ function mdl_pss_ode!(
     Vst_min, Vst_max = PSY.get_Vst_lim(pss)
     T12 = PSY.get_T12(pss)
     T13 = PSY.get_T13(pss)
-    PSSON = PSY.get_PSSON(pss)
-    PSSOFF = PSY.get_PSSOFF(pss)
+    PSSOFF, PSSON = PSY.get_PSS_Hysteresis_param(pss)
 
     # TODO: Washout Block for compensated frequency is not implemented yet
     # Xcomp = PSY.get_Xcomp
@@ -455,7 +454,13 @@ function mdl_pss_ode!(
         PSY.set_hysteresis_binary_logic!(pss, 0)
     end
 
-    hysteresis_binary_logic = PSY.get_hysteresis_binary_logic(pss)
+    # To enable PSS output logic set PSSON >= 0
+    # To disable PSS output logic set PSSON < 0
+    if PSSON >= 0
+        hysteresis_binary_logic = PSY.get_hysteresis_binary_logic(pss)
+    else
+        hysteresis_binary_logic = 1.0
+    end
 
     #Compute 19 states PSS ODE
     output_ode[local_ix[1]] = dxp1_dt
