@@ -195,6 +195,9 @@ function initialize_pss!(
     # Get Required Parameters
     M_rtf = PSY.get_M_rtf(pss)
     N_rtf = PSY.get_N_rtf(pss)
+    Tw1 = PSY.get_Tw1(pss)
+    Tw3 = PSY.get_Tw3(pss)
+    T9 = PSY.get_T9(pss)
     Vs1_min, Vs1_max = PSY.get_Vs1_lim(pss)
     Vs2_min, Vs2_max = PSY.get_Vs2_lim(pss)
     Tcomp = PSY.get_Tcomp(pss)
@@ -212,6 +215,24 @@ function initialize_pss!(
     if M_rtf * N_rtf > 8
         error(
             "M*N cannot be greater than 8. Correct data in PSS associated with $(PSY.get_name(dynamic_device))",
+        )
+    end
+
+    if Tw1 < eps()
+        error(
+            "Tw1 is not allowed to be zero. Correct data in PSS associated with $(PSY.get_name(dynamic_device))",
+        )
+    end
+
+    if Tw3 < eps()
+        error(
+            "Tw3 is not allowed to be zero. Correct data in PSS associated with $(PSY.get_name(dynamic_device))",
+        )
+    end
+
+    if T9 < eps()
+        error(
+            "T9 is not allowed to be zero. Correct data in PSS associated with $(PSY.get_name(dynamic_device))",
         )
     end
 

@@ -323,11 +323,11 @@ function mdl_pss_ode!(
         u_2 = u_2 * (Sbase / basepower) * ω
     end
 
-    #Get the generator electrical output PT
-    PT = inner_vars[τe_var]
+    #Get the generator electrical power output PT
+    PT = inner_vars[τe_var] * ω
 
     #Obtain indices for component w/r to device
-    local_ix = get_local_state_ix(dynamic_device, PSY.PSS2A)
+    local_ix = get_local_state_ix(dynamic_device, PSY.PSS2C)
 
     #Define inner states for component
     internal_states = @view device_states[local_ix]
@@ -389,8 +389,23 @@ function mdl_pss_ode!(
 
     # Compute block derivatives
     y_w_1_1, dxp1_dt = high_pass(u_1, x_p1, Tw1, Tw1)
-    y_w_2_1, dxp2_dt = high_pass(y_w_1_1, x_p2, Tw2, Tw2)
-    yt_1, dxp3_dt = low_pass(y_w_2_1, x_p3, 1.0, T6)
+
+    # To bypass second washout, of the first signal use Tw2 = 0.0
+    y_w_2_1 = y_w_1_1
+    dxp2_dt = 0.0
+
+    if Tw2 != 0.0
+        y_w_2_1, dxp2_dt = high_pass(y_w_1_1, x_p2, Tw2, Tw2)
+    end
+
+    # To bypass use T6 = 0.0
+    yt_1 = y_w_2_1
+    dxp3_dt = 0.0
+
+    if T6 != 0.0
+        yt_1, dxp3_dt = low_pass(y_w_2_1, x_p3, 1.0, T6)
+    end
+
     y_w_1_2, dxp4_dt = high_pass(u_2, x_p4, Tw3, Tw3)
 
     # Bypass Logic Block for second washout (with time constant Tw4)
@@ -401,7 +416,13 @@ function mdl_pss_ode!(
         y_w_2_2, dxp5_dt = high_pass(y_w_1_2, x_p5, Tw4, Tw4)
     end
 
-    yt_2, dxp6_dt = low_pass(y_w_2_2, x_p6, Ks2, T7)
+    # To bypass use T7 = 0.0
+    yt_2 = y_w_2_2
+    dxp6_dt = 0.0
+
+    if T7 != 0.0
+        yt_2, dxp6_dt = low_pass(y_w_2_2, x_p6, Ks2, T7)
+    end
 
     # To bypass use M = N = 0
     y_rtf, dxp7_dt, dxp8_dt, dxp9_dt, dxp10_dt, dxp11_dt, dxp12_dt, dxp13_dt, dxp14_dt =
@@ -457,7 +478,7 @@ function mdl_pss_ode!(
     output_ode[local_ix[18]] = dxp18_dt
 
     # TODO: Washout Block for compensated frequency is not implemented yet, so temporarily its state is kept as zero
-    output_ode[local_ix[19]] = 0
+    output_ode[local_ix[19]] = 0.0
 
     #Compute PSS output signal and update inner vars
     inner_vars[V_pss_var] = VPSS * hysteresis_binary_logic
