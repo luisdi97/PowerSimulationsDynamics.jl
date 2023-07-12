@@ -1,24 +1,26 @@
 # Quick Start Guide
 
-You can access example data in the [Power Systems Test Data Repository](https://github.com/NREL-SIIP/PowerSystemsTestData),
-the data can be downloaded with the `PowerSystems.jl` submodule `UtilsData`. Some systems are already provided in [PowerSystemCaseBuilder](https://github.com/NREL-SIIP/PowerSystemCaseBuilder.jl).
+The data for these tutorials is provided in [PowerSystemCaseBuilder](https://github.com/nrel-sienna/PowerSystemCaseBuilder.jl). If you want to build your own case, take a look at the tutorial [Creating and Handling Data for Dynamic Simulations](@ref)
+
+For more details about loading data and adding more dynamic components check the
+[Creating a System with Dynamic devices](https://nrel-sienna.github.io/PowerSystems.jl/stable/modeler_guide/system_dynamic_data/)
+section of the documentation in `PowerSystems.jl`.
+
+For a detailed tutorial about this case visit [One Machine against Infinite Bus (OMIB) Simulation](@ref)
 
 ## Loading data
 
 Data can be loaded from a pss/e raw file and a pss/e dyr file.
 
 ```@repl quick_start_guide
-using PowerSystems, PowerSimulationsDynamics, PowerSystemCaseBuilder, Sundials, Plots, Logging
-logger = configure_logging(console_level = Logging.Error, file_level = Logging.Info)
-omib_sys = PowerSystemCaseBuilder.build_system(
-                PowerSystemCaseBuilder.PSSETestSystems,
-                "psse_OMIB_sys",
-                )
-```
+using PowerSystems
+using PowerSimulationsDynamics
+using PowerSystemCaseBuilder
+using Sundials
+using Plots
 
-For more details about loading data and adding more dynamic components check the
-[Creating a System with Dynamic devices](https://nrel-siip.github.io/PowerSystems.jl/stable/modeler_guide/system_dynamic_data/)
-section of the documentation in `PowerSystems.jl`.
+omib_sys = build_system(PSIDSystems, "OMIB System")
+```
 
 ## Define the Simulation
 
@@ -40,25 +42,11 @@ show_states_initial_value(sim)
 
 ## Obtain small signal results for initial conditions
 
-```@repl quick_start_guide
-    small_sig = small_signal_analysis(sim)
-```
-
 Show eigenvalues for operating point
 ```@repl quick_start_guide
+    small_sig = small_signal_analysis(sim)
     summary_eigenvalues(small_sig)
 ```
-
-Show reduced jacobian for operating point
-```@repl quick_start_guide
-    small_sig.reduced_jacobian
-```
-
-Explore participation factors. In this case for state ω
-```@repl quick_start_guide
-    part_factors = summary_participation_factors(small_sig)
-```
-This means that the state ω of the generator at bus 102, participates 50% in eigenvalue 1 and 50% in eigenvalue 2.
 
 ## Execute the simulation
 
@@ -71,7 +59,7 @@ This means that the state ω of the generator at bus 102, participates 50% in ei
 ```@repl quick_start_guide
 results = read_results(sim)
 angle = get_state_series(results, ("generator-102-1", :δ));
-plot(angle, xlabel = "time", ylabel = "rotor angle [rad]", label = "gen-102-1");
+plot(angle, xlabel = "time", ylabel = "rotor angle [rad]", label = "gen-102-1")
 ```
 
 ![plot](assets/f-plot.svg)
