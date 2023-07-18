@@ -49,6 +49,18 @@ function mass_matrix_avr_entries!(
     return
 end
 
+function mass_matrix_avr_entries!(
+    mass_matrix,
+    avr::PSY.ESST1A,
+    global_index::Base.ImmutableDict{Symbol, Int64},
+)
+    mass_matrix[global_index[:Vm], global_index[:Vm]] = PSY.get_Tr(avr)
+    mass_matrix[global_index[:Vr1], global_index[:Vr1]] = PSY.get_Tb(avr)
+    mass_matrix[global_index[:Vr2], global_index[:Vr2]] = PSY.get_Tb1(avr)
+    mass_matrix[global_index[:Va], global_index[:Va]] = PSY.get_Ta(avr)
+    return
+end
+
 function mdl_avr_ode!(
     ::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ::AbstractArray{<:ACCEPTED_REAL_TYPES},
@@ -552,7 +564,6 @@ function mdl_avr_ode!(
 
     #Get parameters
     avr = PSY.get_avr(dynamic_device)
-
     UEL = PSY.get_UEL_flags(avr)
     VOS = PSY.get_PSS_flags(avr)
     Tr = PSY.get_Tr(avr)
@@ -573,7 +584,7 @@ function mdl_avr_ode!(
 
     #Compute auxiliary parameters
     Itemp = K_lr * (Ifd - I_lr)
-    Iresult = Itemp > 0 ? Itemp : 0
+    Iresult = Itemp > 0.0 ? Itemp : 0.0
 
     if VOS == 1
         V_ref = V0_ref + Vs
@@ -585,7 +596,7 @@ function mdl_avr_ode!(
 
     # Compute block derivatives
     _, dVm_dt = low_pass_mass_matrix(Vt, Vm, 1.0, Tr)
-    y_hp, dVfb_dt = high_pass(Vasum, Vfb, Kf, Tf)
+    y_hp, dVr3_dt = high_pass(Va_sum, Vr3, Kf, Tf)
     y_ll1, dVr1_dt =
         lead_lag_mass_matrix(clamp(V_ref - Vm - y_hp, Vi_min, Vi_max), Vr1, 1.0, Tc, Tb)
     y_ll2, dVr2_dt =
@@ -597,10 +608,10 @@ function mdl_avr_ode!(
     output_ode[local_ix[2]] = dVr1_dt
     output_ode[local_ix[3]] = dVr2_dt
     output_ode[local_ix[4]] = dVa_dt
-    output_ode[local_ix[5]] = dVfb_dt
+    output_ode[local_ix[5]] = dVr3_dt
 
     #Update inner_vars
-    Vf = clamp(Vasum, Vt * Vr_min, Vt * Vr_max - Kc * Ifd)
+    Vf = clamp(Va_sum, Vt * Vr_min, Vt * Vr_max - Kc * Ifd)
     inner_vars[Vf_var] = Vf
     return
 end

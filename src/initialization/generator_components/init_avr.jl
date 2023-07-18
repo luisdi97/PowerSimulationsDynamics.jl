@@ -527,6 +527,7 @@ function initialize_avr!(
     Ifd = inner_vars[Xad_Ifd_var] # machine's field current in exciter base (for the available generator models)
 
     #Get parameters
+    avr = PSY.get_avr(dynamic_device)
     Tc = PSY.get_Tc(avr)
     Tb = PSY.get_Tb(avr)
     Tc1 = PSY.get_Tc1(avr)
