@@ -754,6 +754,69 @@ function _field_voltage(
 end
 
 """
+Function to obtain the field voltage time series of a Dynamic Generator with avr ESST1A.
+
+"""
+function _field_voltage(
+    avr::PSY.ESST1A,
+    name::String,
+    res::SimulationResults,
+    dt::Union{Nothing, Float64},
+)
+    # Obtain state Va
+    ts, Va = post_proc_state_series(res, (name, :Va), dt)
+
+    # Obtain field current
+    _, Ifd = post_proc_field_current_series(res, name, dt)
+
+    # Obtain PSS output
+    # TODO: Obtain the correct PSS output
+    Vs = zeros(length(Va))
+
+    # Get parameters
+    VOS = PSY.get_PSS_flags(avr)
+    Vr_min, Vr_max = PSY.get_Vr_lim(avr)
+    Kc = PSY.get_Kc(avr)
+    K_lr = PSY.get_K_lr(avr)
+    I_lr = PSY.get_I_lr(avr)
+
+    # Obtain machine's terminal voltage
+    bus_str = split(name, "-")[2]
+    bus_num = parse(Int, bus_str)
+    _, Vt = get_voltage_magnitude_series(res, bus_num; dt = dt)
+
+    # Compute auxiliary arrays
+    Itemp = similar(Ifd)
+    Iresult = similar(Ifd)
+
+    for (ix, Ifd_ix) in enumerate(Ifd)
+        Itemp[ix] = K_lr * (Ifd_ix - I_lr)
+        Iresult[ix] = Itemp[ix] > 0.0 ? Itemp[ix] : 0.0
+    end
+
+    # Compute Va_sum
+    Va_sum = similar(Va)
+
+    if VOS == 1
+        for (ix, Va_ix) in enumerate(Va)
+            Va_sum[ix] = Va_ix - Iresult[ix]
+        end
+    elseif VOS == 2
+        for (ix, Va_ix) in enumerate(Va)
+            Va_sum[ix] = Va_ix - Iresult[ix] + Vs[ix]
+        end
+    end
+
+    # Compute field voltage
+    Vf = similar(Va_sum)
+    for (ix, Va_sum_ix) in enumerate(Va_sum)
+        Vf[ix] = clamp(Va_sum_ix, Vt[ix] * Vr_min, Vt[ix] * Vr_max - Kc * Ifd[ix])
+    end
+
+    return ts, Vf
+end
+
+"""
 Function to obtain the mechanical torque time series of a Dynamic Generator with TGFixed Turbine Governor.
 
 """
