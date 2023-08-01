@@ -832,6 +832,20 @@ function _field_voltage(
 end
 
 """
+Function to obtain the pss output time series of a Dynamic Generator with pss PSSFixed.
+
+"""
+function _pss_output(
+    pss::PSY.PSSFixed,
+    name::String,
+    res::SimulationResults,
+    dt::Union{Nothing, Float64},
+)
+    ts, _ = post_proc_state_series(res, (name, :δ), dt)
+    return ts, zeros(length(ts))
+end
+
+"""
 Function to obtain the pss output time series of a Dynamic Generator with pss IEEEST.
 
 """
