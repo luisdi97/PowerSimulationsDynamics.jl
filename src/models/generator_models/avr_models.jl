@@ -9,6 +9,17 @@ end
 
 function mass_matrix_avr_entries!(
     mass_matrix,
+    avr::PSY.ESAC1A,
+    global_index::Base.ImmutableDict{Symbol, Int64},
+)
+    mass_matrix[global_index[:Vm], global_index[:Vm]] = PSY.get_Tr(avr)
+    mass_matrix[global_index[:Vr1], global_index[:Vr1]] = PSY.get_Tb(avr)
+    mass_matrix[global_index[:Vr2], global_index[:Vr2]] = PSY.get_Ta(avr)
+    return
+end
+
+function mass_matrix_avr_entries!(
+    mass_matrix,
     avr::PSY.SEXS,
     global_index::Base.ImmutableDict{Symbol, Int64},
 )
@@ -258,12 +269,11 @@ function mdl_avr_ode!(
     Ta = PSY.get_Ta(avr)
     Tb = PSY.get_Tb(avr)
     Tc = PSY.get_Tc(avr)
-    inv_Tr = Tr < eps() ? 1.0 : 1.0 / Tr
     Ka = PSY.get_Ka(avr)
     Va_min, Va_max = PSY.get_Va_lim(avr) #Not used without UEL or OEL
     Te = PSY.get_Te(avr) # Te > 0
     Kf = PSY.get_Kf(avr)
-    Tf = PSY.get_Tf(avr) # Te > 0
+    Tf = PSY.get_Tf(avr) # Tf > 0
     Kc = PSY.get_Kc(avr)
     Kd = PSY.get_Kd(avr)
     Ke = PSY.get_Ke(avr)
@@ -277,11 +287,11 @@ function mdl_avr_ode!(
     Vf = Ve * rectifier_function(I_N)
 
     # Compute blocks
-    _, dVm_dt = low_pass(V_th, Vm, 1.0, 1.0 / inv_Tr)
+    _, dVm_dt = low_pass_mass_matrix(V_th, Vm, 1.0, Tr)
     V_F, dVr3_dt = high_pass(V_FE, Vr3, Kf, Tf)
     V_in = V_ref + Vs - Vm - V_F
-    y_ll, dVr1_dt = lead_lag(V_in, Vr1, 1.0, Tc, Tb)
-    _, dVr2_dt = low_pass_nonwindup(y_ll, Vr2, Ka, Ta, Va_min, Va_max)
+    y_ll, dVr1_dt = lead_lag_mass_matrix(V_in, Vr1, 1.0, Tc, Tb)
+    _, dVr2_dt = low_pass_nonwindup_mass_matrix(y_ll, Vr2, Ka, Ta, Va_min, Va_max)
 
     #Set clamping for Vr2.
     V_R = clamp(Vr2, Vr_min, Vr_max)
