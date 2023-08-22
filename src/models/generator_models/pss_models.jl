@@ -118,10 +118,34 @@ function mdl_pss_ode!(
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ω_sys::ACCEPTED_REAL_TYPES,
     dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSSFixed}},
+    t,
 ) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
 
     #Update V_pss on inner vars
     inner_vars[V_pss_var] = PSY.get_V_pss(PSY.get_pss(dynamic_device))
+
+    return
+end
+
+function mdl_pss_ode!(
+    ::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    ::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    ω_sys::ACCEPTED_REAL_TYPES,
+    dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSSPVr}},
+    t,
+) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
+
+    #Get Signal Input Integer
+    pss = PSY.get_pss(dynamic_device)
+
+    # Get Parameters
+    Amp = PSY.get_Amp(pss)
+    Omega = PSY.get_Omega(pss)
+    Phi = PSY.get_Phi(pss)
+
+    #Update V_pss on inner vars
+    inner_vars[V_pss_var] = Amp*sin(Omega*t + Phi)
 
     return
 end
@@ -132,6 +156,7 @@ function mdl_pss_ode!(
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ω_sys::ACCEPTED_REAL_TYPES,
     dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.IEEEST}},
+    t,
 ) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
 
     #Get Signal Input Integer
@@ -229,6 +254,7 @@ function mdl_pss_ode!(
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ω_sys::ACCEPTED_REAL_TYPES,
     dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.STAB1}},
+    t,
 ) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
 
     #Get Signal Input Integer
@@ -284,6 +310,7 @@ function mdl_pss_ode!(
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ω_sys::ACCEPTED_REAL_TYPES,
     dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSS2A}},
+    t,
 ) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
 
     #Get Signal Input Integer
@@ -452,6 +479,7 @@ function mdl_pss_ode!(
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ω_sys::ACCEPTED_REAL_TYPES,
     dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSS2B}},
+    t,
 ) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
 
     #Get Signal Input Integer
@@ -631,6 +659,7 @@ function mdl_pss_ode!(
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
     ω_sys::ACCEPTED_REAL_TYPES,
     dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSS2C}},
+    t,
 ) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
 
     #Get Signal Input Integer

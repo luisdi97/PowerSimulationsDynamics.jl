@@ -196,6 +196,38 @@ function compute_pss_output(
 end
 
 """
+Function to obtain the electrical torque time series of a Dynamic Generator model out of the DAE Solution. It receives the simulation inputs,
+the dynamic device and bus voltage. It is dispatched for device type to compute the specific torque.
+
+"""
+function compute_electrical_torque(
+    res::SimulationResults,
+    dynamic_device::G,
+    V_R::Vector{Float64},
+    V_I::Vector{Float64},
+    dt::Union{Nothing, Float64},
+) where {G <: PSY.DynamicGenerator}
+
+    #Obtain Data
+    sys = get_system(res)
+
+    #Get machine
+    machine = PSY.get_machine(dynamic_device)
+    Sbase = PSY.get_base_power(sys)
+    basepower = PSY.get_base_power(dynamic_device)
+    base_power_ratio = basepower / Sbase
+    return _electrical_torque(
+        machine,
+        PSY.get_name(dynamic_device),
+        V_R,
+        V_I,
+        base_power_ratio,
+        res,
+        dt,
+    )
+end
+
+"""
 Function to obtain the mechanical torque time series of a Dynamic Generator model out of the DAE Solution. It receives the simulation inputs,
 the dynamic device and bus voltage. It is dispatched for device type to compute the specific torque.
 
@@ -846,6 +878,35 @@ function _pss_output(
 end
 
 """
+Function to obtain the pss output time series of a Dynamic Generator with pss PSSPVr.
+
+"""
+function _pss_output(
+    pss::PSY.PSSPVr,
+    name::String,
+    res::SimulationResults,
+    dt::Union{Nothing, Float64},
+)
+    # Get Parameters
+    Amp = PSY.get_Amp(pss)
+    Omega = PSY.get_Omega(pss)
+    Phi = PSY.get_Phi(pss)
+
+    # Get time
+    ts, _ = post_proc_state_series(res, (name, :δ), dt)
+
+    # Compute PSS output signal
+    V_pss = similar(ts)
+
+    for (ix, ts_ix) in enumerate(ts)
+        V_pss[ix] = Amp*sin(Omega*ts_ix + Phi)
+    end
+
+    return ts, V_pss
+end
+
+
+"""
 Function to obtain the pss output time series of a Dynamic Generator with pss IEEEST.
 
 """
@@ -910,6 +971,60 @@ function _pss_output(
     end
 
     return ts, V_pss
+end
+
+"""
+Function to obtain the electrical torque time series of a GENROU/GENROE model out of the DAE Solution. It is dispatched via the machine type.
+
+"""
+
+function _electrical_torque(
+    machine::Union{PSY.RoundRotorQuadratic, PSY.RoundRotorExponential},
+    name::String,
+    V_R::Vector{Float64},
+    V_I::Vector{Float64},
+    base_power_ratio::Float64,
+    res::SimulationResults,
+    dt::Union{Nothing, Float64},
+)
+    ts, δ = post_proc_state_series(res, (name, :δ), dt)
+    _, eq_p = post_proc_state_series(res, (name, :eq_p), dt)
+    _, ed_p = post_proc_state_series(res, (name, :ed_p), dt)
+    _, ψ_kd = post_proc_state_series(res, (name, :ψ_kd), dt)
+    _, ψ_kq = post_proc_state_series(res, (name, :ψ_kq), dt)
+
+    #Get parameters
+    R = PSY.get_R(machine)
+    Xd_p = PSY.get_Xd_p(machine)
+    Xd_pp = PSY.get_Xd_pp(machine)
+    Xq_pp = Xd_pp
+    Xl = PSY.get_Xl(machine)
+    γ_d1 = PSY.get_γ_d1(machine)
+    γ_q1 = PSY.get_γ_q1(machine)
+    γ_d2 = PSY.get_γ_d2(machine)
+
+    ψq_pp = γ_q1 * ed_p + ψ_kq * (1 - γ_q1)
+    ψd_pp = γ_d1 * eq_p + γ_d2 * (Xd_p - Xl) * ψ_kd
+
+    τe = similar(δ, Float64)
+
+    for ix in 1:length(δ)
+        v = δ[ix]
+        V_d, V_q = ri_dq(v) * [V_R[ix]; V_I[ix]]
+
+        #Obtain electric current
+        I_d =
+            (1.0 / (R^2 + Xq_pp * Xd_pp)) *
+            (-R * (V_d - ψq_pp[ix]) + Xq_pp * (-V_q + ψd_pp[ix]))
+        I_q =
+            (1.0 / (R^2 + Xq_pp * Xd_pp)) *
+            (Xd_pp * (V_d - ψq_pp[ix]) + R * (-V_q + ψd_pp[ix]))
+        
+        #Obtain electrical torque
+        τe[ix] = I_d * (V_d + I_d * R) + I_q * (V_q + I_q * R)
+        τe[ix] = base_power_ratio * τe[ix]
+    end
+    return ts, τe
 end
 
 """

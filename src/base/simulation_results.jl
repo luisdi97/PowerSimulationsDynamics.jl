@@ -224,6 +224,31 @@ function post_proc_pss_output_series(
 end
 
 """
+Function to compute the electrical torque output time series of a Dynamic Injection series out of the DAE Solution. It receives the solution and the
+string name of the Dynamic Injection device.
+
+"""
+function post_proc_electrical_torque_series(
+    res::SimulationResults,
+    name::String,
+    dt::Union{Nothing, Float64},
+)
+    system = get_system(res)
+    bus_lookup = get_bus_lookup(res)
+    n_buses = length(bus_lookup)
+    solution = res.solution
+    device = PSY.get_component(PSY.StaticInjection, system, name)
+    if isnothing(device)
+        error("Device $(name) not found in the system")
+    end
+    bus_ix = get(bus_lookup, PSY.get_number(PSY.get_bus(device)), -1)
+    ts, V_R, V_I = post_proc_voltage_series(solution, bus_ix, n_buses, dt)
+    dyn_device = PSY.get_dynamic_injector(device)
+    ts, τe = compute_electrical_torque(res, dyn_device, V_R, V_I, dt)
+    return ts, τe
+end
+
+"""
 Function to compute the mechanical torque output time series of a Dynamic Injection series out of the DAE Solution. It receives the solution and the
 string name of the Dynamic Injection device.
 
@@ -462,6 +487,23 @@ Function to obtain the pss output time series of a Dynamic Generator out of the 
 """
 function get_pss_output_series(res::SimulationResults, name::String; dt = nothing)
     return post_proc_pss_output_series(res, name, dt)
+end
+
+"""
+    get_electrical_torque_series(
+            res::SimulationResults,
+            name::String,
+    )
+
+Function to obtain the electrical torque time series of the electrical torque out of the DAE Solution.
+
+# Arguments
+
+- `res::SimulationResults` : Simulation Results object that contains the solution
+- `name::String` : Name to identify the specified device
+"""
+function get_electrical_torque_series(res::SimulationResults, name::String; dt = nothing)
+    return post_proc_electrical_torque_series(res, name, dt)
 end
 
 """
