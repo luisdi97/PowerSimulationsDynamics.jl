@@ -845,6 +845,34 @@ function _pss_output(
     return ts, zeros(length(ts))
 end
 
+
+"""
+Function to obtain the pss output time series of a Dynamic Generator with pss PSSPVr.
+"""
+function _pss_output(
+    pss::PSY.PSSPVr,
+    name::String,
+    res::SimulationResults,
+    dt::Union{Nothing, Float64},
+)
+    # Get Parameters
+    Amp = PSY.get_Amp(pss)
+    Omega = PSY.get_Omega(pss)
+    Phi = PSY.get_Phi(pss)
+
+    # Get time
+    ts, _ = post_proc_state_series(res, (name, :δ), dt)
+
+    # Compute PSS output signal
+    V_pss = similar(ts)
+
+    for (ix, ts_ix) in enumerate(ts)
+        V_pss[ix] = Amp*sin(Omega*ts_ix + Phi)
+    end
+
+    return ts, V_pss
+end
+
 """
 Function to obtain the pss output time series of a Dynamic Generator with pss IEEEST.
 
