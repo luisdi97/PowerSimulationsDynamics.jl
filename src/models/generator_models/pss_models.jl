@@ -151,6 +151,37 @@ function mdl_pss_ode!(
 end
 
 function mdl_pss_ode!(
+    ::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    ::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    ω_sys::ACCEPTED_REAL_TYPES,
+    dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSSVector}},
+    t,
+) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
+
+    #Get Signal Input Integer
+    pss = PSY.get_pss(dynamic_device)
+
+    # Get Parameters
+    ts = PSY.get_ts(pss)
+    output_vector = PSY.get_output_vector(pss)
+
+    index = trunc(Int, round(t/ts + 1))
+
+    if t == 0.0
+        vpss = 0.0
+    else
+        vpss = output_vector[index]
+
+    end
+
+    #Update V_pss on inner vars
+    inner_vars[V_pss_var] = vpss
+
+    return
+end
+
+function mdl_pss_ode!(
     device_states::AbstractArray{<:ACCEPTED_REAL_TYPES},
     output_ode::AbstractArray{<:ACCEPTED_REAL_TYPES},
     inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
