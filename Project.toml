@@ -19,7 +19,11 @@ PowerSystems = "bcd98974-b02a-5e2f-9ee0-a103f5c450dd"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 SciMLBase = "0bca4576-84f4-4d90-8ffe-ffa030f20462"
+DiffEqCallbacks = "459566f4-90b8-5000-8ac3-15dfb0a30def"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Convex = "f65535da-76fb-5f13-bab9-19810c17039a"
+SCS = "c946c3f1-0d1f-5ce8-9dea-7daa1f7e2d13"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]

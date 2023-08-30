@@ -172,8 +172,233 @@ function mdl_pss_ode!(
         vpss = 0.0
     else
         vpss = output_vector[index]
-
     end
+
+    #Update V_pss on inner vars
+    inner_vars[V_pss_var] = vpss
+
+    return
+end
+
+function calc_H(data, num_in_or_out, T, T_ini, N)
+    Hc = T - T_ini - N + 1
+
+    P_total = Vector{Matrix{Float64}}(undef, num_in_or_out)
+    F_total = Vector{Matrix{Float64}}(undef, num_in_or_out)
+    
+    for i in 1:num_in_or_out
+        P_temp = Any[]
+        F_temp = Any[]
+    
+        for j in 1:Hc
+            if j == 1
+                P_temp = data[j : T_ini+j-1, i]
+    
+                F_temp = data[T_ini+j : T_ini+N+j-1, i]
+            else
+                P_temp = hcat(P_temp, data[j : T_ini+j-1, i])
+    
+                F_temp = hcat(F_temp, data[T_ini+j : T_ini+N+j-1, i])
+            end
+        end
+    
+        P_total[i] = P_temp
+        F_total[i] = F_temp
+    end
+    
+    return vcat(P_total, F_total)
+end
+
+function mdl_pss_ode!(
+    ::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    ::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    inner_vars::AbstractArray{<:ACCEPTED_REAL_TYPES},
+    ω_sys::ACCEPTED_REAL_TYPES,
+    dynamic_device::DynamicWrapper{PSY.DynamicGenerator{M, S, A, TG, PSY.PSSDeePC}},
+    t,
+) where {M <: PSY.Machine, S <: PSY.Shaft, A <: PSY.AVR, TG <: PSY.TurbineGov}
+
+    #Get Signal Input Integer
+    pss = PSY.get_pss(dynamic_device)
+
+    ts = PSY.get_ts(pss)
+
+    T_ini = PSY.get_T_ini(pss)
+
+    global init_unique
+
+    1
+
+    if ! init_unique
+        u_d = PSY.get_u_d(pss)
+        y_d = PSY.get_y_d(pss)
+        N = PSY.get_N(pss)
+
+        tinitial = PSY.get_tinitial(pss)
+        tfinal = PSY.get_tfinal(pss)
+
+        global m_unique = size(u_d)[2]
+        global p_unique = size(y_d)[2]
+        global T_unique = size(y_d)[1]
+
+        global length_vector_unique = length(tinitial:ts:tfinal)
+
+        global u_unique = Matrix{Float64}(undef, length_vector_unique, m_unique)
+
+        global H_u_unique = calc_H(u_d, m_unique, T_unique, T_ini, N)
+        global H_y_unique = calc_H(y_d, p_unique, T_unique, T_ini, N)
+
+        global vec_bool_index_unique = fill(false, length_vector_unique)
+
+        global init_unique = true
+    end
+
+    global vec_bool_index_unique
+
+    bus_ix = get_bus_ix(dynamic_device)
+
+    index = trunc(Int, round(t/ts + 1))
+
+    k = PSY.get_k(pss)
+
+    if ! vec_bool_index_unique[index]
+        println(index)
+
+        if index > T_ini
+            ix_logic = (index - T_ini) % k
+
+            if ix_logic == 1
+                println("DeePC")
+
+                # DeePC
+                global saved_values_unique
+                global u_unique
+                global H_u_unique
+                global H_y_unique
+                global p_unique
+                global m_unique
+                global T_unique
+        
+                # Get Parameters
+                N = PSY.get_N(pss)
+                Q_factor = PSY.get_Q_factor(pss)
+                lambda_g = PSY.get_lambda_g(pss)
+                lambda_y = PSY.get_lambda_y(pss)
+                y_ref = PSY.get_y_ref(pss)
+                lower_u = PSY.get_lower_u(pss)
+                upper_u = PSY.get_upper_u(pss)
+                lower_y = PSY.get_lower_y(pss)
+                upper_y = PSY.get_upper_y(pss)
+                indexes_saved_outputs = PSY.get_indexes_saved_outputs(pss)
+
+                # Blocks inside H_u_unique
+
+                # UP1 = H_u_unique[1]
+                # UP2 = H_u_unique[2]
+                # UP3 = H_u_unique[3]
+                # UP4 = H_u_unique[4]
+
+                # UF1 = H_u_unique[5]
+                # UF2 = H_u_unique[6]
+                # UF3 = H_u_unique[7]
+                # UF4 = H_u_unique[8]
+
+                # YP1 = H_y_unique[1]
+                # YP2 = H_y_unique[2]
+                # YP3 = H_y_unique[3]
+                # YP4 = H_y_unique[4]
+
+                # YF1 = H_y_unique[5]
+                # YF2 = H_y_unique[6]
+                # YF3 = H_y_unique[7]
+                # YF4 = H_y_unique[8]
+
+                u_past = Matrix{Float64}(undef, T_ini, m_unique)
+                y_past = Matrix{Float64}(undef, T_ini, p_unique)
+
+                for i in 1:T_ini
+                    for j in 1:m_unique
+                        u_past[i, j] = u_unique[index-T_ini+i-1, j]
+                    end
+
+                    for j in 1:p_unique
+                        y_past[i, j] = saved_values_unique.saveval[index-T_ini+i-1][indexes_saved_outputs[j]]
+                    end
+                end
+
+                Hc = T_unique - T_ini - N + 1
+
+                g = Convex.Variable(Hc)
+
+                u_fut = Convex.Variable(N, m_unique)
+
+                y_fut = Convex.Variable(N, p_unique)
+
+                sigma_y_past = Convex.Variable(T_ini, p_unique)
+
+                cost = lambda_g * Convex.sumsquares(g)
+
+                for i in 1:m_unique
+                    cost += Convex.sumsquares(u_fut[:, 1])
+                end
+
+                for i in 1:p_unique
+                    cost += Q_factor * Convex.sumsquares(y_fut[:, 1] - ones(N) * y_ref[1]) +
+                    lambda_y * Convex.sumsquares(sigma_y_past[:, 1])
+                end
+
+                problem = Convex.minimize(cost)
+
+                for i in 1:m_unique
+                    problem.constraints += H_u_unique[i] * g == u_past[:, i]
+                    problem.constraints += H_u_unique[m_unique + i] * g == u_fut[:, i]
+
+                    problem.constraints += u_fut[:, i] >= lower_u[i]
+                    problem.constraints += u_fut[:, i] <= upper_u[i]
+                end
+
+                for i in 1:p_unique
+                    problem.constraints += H_y_unique[i] * g == y_past[:, i] + sigma_y_past[:, i]
+                    problem.constraints += H_y_unique[p_unique + i] * g == y_fut[:, i]
+
+                    problem.constraints += y_fut[:, i] >= lower_y[i]
+                    problem.constraints += y_fut[:, i] <= upper_y[i]
+                end
+
+                Convex.solve!(problem, SCS.Optimizer; silent_solver = false)
+
+                if problem.status != MathOptInterface.OPTIMAL
+                    throw(ErrorException("At index "*string(index)*", Convex had an issue with the optimization. Got "*string(problem.status)))
+                end
+
+                for i in 1:N
+                    for j in 1:m_unique
+                        global length_vector_unique
+
+                        u_index = index + i - 1
+
+                        if u_index <= length_vector_unique
+                            u_unique[u_index, j] = u_fut.value[i, j]
+                        end
+                    end
+                end
+            end
+        end
+
+        global vec_bool_index_unique[index] = true
+    end
+
+    if index < T_ini
+        vpss = 0.0
+    else
+        global u_unique
+
+        vpss = u_unique[index, bus_ix]
+    end
+
+    global u_unique
+
+    u_unique[index, bus_ix] = vpss
 
     #Update V_pss on inner vars
     inner_vars[V_pss_var] = vpss

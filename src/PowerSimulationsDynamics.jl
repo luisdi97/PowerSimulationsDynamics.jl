@@ -66,11 +66,15 @@ export transform_load_to_constant_power
 import Logging
 import InfrastructureSystems
 import SciMLBase
+import DiffEqCallbacks
 import DataStructures: OrderedDict
 import DataFrames: DataFrame
 import Random
 import ForwardDiff
 import SparseArrays
+import Convex
+import SCS
+import MathOptInterface
 import LinearAlgebra
 import Base.to_index
 import NLsolve
@@ -184,5 +188,29 @@ include("utils/immutable_dicts.jl")
 include("utils/print.jl")
 include("utils/kwargs_check.jl")
 include("utils/logging.jl")
+
+init_unique = false
+m_unique = 0
+p_unique = 0
+T_unique = 0
+length_vector_unique = 0
+H_u_unique = Vector{Matrix{Float64}}(undef, 0)
+H_y_unique = Vector{Matrix{Float64}}(undef, 0)
+u_unique = Matrix{Float64}(undef, 0, 0)  # All inputs
+vec_bool_index_unique = Vector{Bool}(undef, 0)
+saved_values_unique = DiffEqCallbacks.SavedValues(
+                          Float64,  # Time
+                          Tuple{
+                              Float64,  # P_7_8
+                              Float64,  # τe_1
+                              Float64,  # τe_2
+                              Float64,  # τe_3
+                              Float64,  # τe_4
+                              Float64,  # Vt_1
+                              Float64,  # Vt_2
+                              Float64,  # Vt_3
+                              Float64,  # Vt_4
+                          }
+                      )
 
 end # module

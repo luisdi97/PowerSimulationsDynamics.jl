@@ -483,16 +483,128 @@ function _filter_kwargs(kwargs)
     return Dict(k => v for (k, v) in kwargs if in(k, DIFFEQ_SOLVE_KWARGS))
 end
 
+function calc_te(V_R, V_I, δ, eq_p, ed_p, ψ_kd, ψ_kq, delta)
+    # 1.8 Xd
+    # 1.7 Xq
+    # 0.30 Xd_p
+    # 0.55 Xq_p
+    # 0.25 Xd_pp
+    # 0.2 Xl
+
+    R = 0.0
+    Xd_p = 0.30
+    Xd_pp = 0.25
+    Xq_p = 0.55
+    Xq_pp = Xd_pp
+    Xl = 0.2
+    γ_d1 = (Xd_pp - Xl) / (Xd_p - Xl)
+    γ_q1 = (Xd_pp - Xl) / (Xq_p - Xl)
+    γ_d2 = (Xd_p - Xd_pp) / (Xd_p - Xl)^2
+
+    ψq_pp = γ_q1 * ed_p + ψ_kq * (1 - γ_q1)
+    ψd_pp = γ_d1 * eq_p + γ_d2 * (Xd_p - Xl) * ψ_kd
+
+    base_power_ratio = 9.0
+
+    V_d, V_q = ri_dq(δ) * [V_R; V_I]
+
+    I_d =
+        (1.0 / (R^2 + Xq_pp * Xd_pp)) *
+        (-R * (V_d - ψq_pp) + Xq_pp * (-V_q + ψd_pp))
+    I_q =
+        (1.0 / (R^2 + Xq_pp * Xd_pp)) *
+        (Xd_pp * (V_d - ψq_pp) + R * (-V_q + ψd_pp))
+
+    τe = I_d * (V_d + I_d * R) + I_q * (V_q + I_q * R)
+    τe = base_power_ratio * τe
+
+    return τe + delta
+end
+
+function func_save_callback(u, t, integrator)
+    num_bus = 11
+
+    V_R_from = u[7]
+    V_I_from = u[7 + num_bus]
+    V_R_to = u[8]
+    V_I_to = u[8 + num_bus]
+    
+    r = 0.011
+    x = 0.11
+    
+    I_flow = ((V_R_from + V_I_from * 1im) - (V_R_to + V_I_to * 1im)) / (r + x * 1im)
+    
+    Ir = real(I_flow)
+    Ii = imag(I_flow)
+    
+    P_7_8 = 2*(V_R_from * Ir + V_I_from * Ii)
+
+    ###########################################################################
+    
+    eq_p_ix = 0
+    eq_d_ix = 1
+    ψ_kd_ix = 2
+    ψ_kq_ix = 3
+    δ_ix = 4
+
+    gen_1_ix = 39
+    gen_2_ix = 47
+    gen_3_ix = 23
+    gen_4_ix = 31
+
+    bus_gen_1_ix = 1
+    bus_gen_2_ix = 2
+    bus_gen_3_ix = 3
+    bus_gen_4_ix = 4
+
+    gen_ix = [gen_1_ix, gen_2_ix, gen_3_ix, gen_4_ix]
+    bus_gen_ix = [bus_gen_1_ix, bus_gen_2_ix, bus_gen_3_ix, bus_gen_4_ix]
+
+    deltas = [0.018452523, 0.023446742, 0.017592363, 0.020173627]
+
+    te = Array{Float64}(undef, 4)
+
+    for i in 1:length(gen_ix)
+        V_R = u[bus_gen_ix[i]]
+        V_I = u[bus_gen_ix[i] + num_bus]
+    
+        δ = u[gen_ix[i] + δ_ix]
+        eq_p = u[gen_ix[i] + eq_p_ix]
+        ed_p = u[gen_ix[i] + eq_d_ix]
+        ψ_kd = u[gen_ix[i] + ψ_kd_ix]
+        ψ_kq = u[gen_ix[i] + ψ_kq_ix]
+
+        delta = deltas[i]
+
+        te[i] = calc_te(V_R, V_I, δ, eq_p, ed_p, ψ_kd, ψ_kq, delta)
+    end
+
+    ###########################################################################
+    
+    V = Array{Float64}(undef, 4)
+
+    for i in 1:length(bus_gen_ix)
+        V[i] = sqrt(u[i]^2 + u[i + num_bus]^2)
+    end
+
+    return (P_7_8, te[1], te[2], te[3], te[4], V[1], V[2], V[3], V[4])
+end
+
 function _execute!(sim::Simulation, solver; kwargs...)
     @debug "status before execute" sim.status
     simulation_pre_step!(sim)
     sim.status = SIMULATION_STARTED
     time_log = Dict{Symbol, Any}()
+    global saved_values_unique
+    ts = kwargs[:saveat]
+    tinitial = sim.tspan[1]
+    tfinal = sim.tspan[2]
+    cb_new = DiffEqCallbacks.SavingCallback(func_save_callback, saved_values_unique, saveat = tinitial:ts:tfinal)
     if get(kwargs, :auto_abstol, false)
         cb = AutoAbstol(true, get(kwargs, :abstol, 1e-9))
-        callbacks = SciMLBase.CallbackSet((), tuple(push!(sim.callbacks, cb)...))
+        callbacks = SciMLBase.CallbackSet((), tuple(push!(sim.callbacks, cb, cb_new)...))
     else
-        callbacks = SciMLBase.CallbackSet((), tuple(sim.callbacks...))
+        callbacks = SciMLBase.CallbackSet((), tuple(push!(sim.callbacks, cb_new)...))
     end
 
     solution,

@@ -319,6 +319,49 @@ Function to obtain the voltage magnitude series out of the DAE Solution.
 - `bus_number::Int` : Bus number identifier
 """
 function get_voltage_magnitude_series(res::SimulationResults, bus_number::Int; dt = nothing)
+    #if bus_number == 1
+    #    global saved_values_unique
+    #    println("t P_7_8 τe_1 τe_2 τe_3 τe_4 V1 V2 V3 V4")
+    #    for i in 1:length(saved_values_unique.saveval)
+    #        string_print = string(saved_values_unique.t[i])
+
+    #        for j in 1:length(saved_values_unique.saveval[i])
+    #            string_print = string_print*" "*string(saved_values_unique.saveval[i][j])
+    #        end
+
+    #        println(string_print)
+    #    end
+    #end
+    #if bus_number == 1
+    #    global t_saved_unique
+    #    println("i t")
+    #    for i in 1:length(t_saved_unique)
+    #        println(i, " ", t_saved_unique[i])
+    #    end
+    #end
+
+    ## Generate random problem data
+    #m = 4;  n = 5
+    #A = randn(m, n); b = randn(m)
+
+    ## Create a (column vector) variable of size n x 1.
+    #x = Convex.Variable(n)
+
+    ## The problem is to minimize ||Ax - b||^2 subject to x >= 0
+    ## This can be done by: minimize(objective, constraints)
+    #problem = Convex.minimize(Convex.sumsquares(A * x - b), [x >= 0])
+
+    ## Solve the problem by calling solve!
+    #Convex.solve!(problem, SCS.Optimizer; silent_solver = true)
+
+    ## Check the status of the problem
+    #problem.status # :Optimal, :Infeasible, :Unbounded etc.
+
+    ## Get the optimum value
+    #problem.optval
+
+    #println(x.value)
+
     n_buses = get_bus_count(res)
     bus_ix = get(get_bus_lookup(res), bus_number, 0)
     ts, V_R, V_I = post_proc_voltage_series(res.solution, bus_ix, n_buses, dt)
