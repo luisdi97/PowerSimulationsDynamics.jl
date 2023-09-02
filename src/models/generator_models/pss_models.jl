@@ -322,7 +322,13 @@ function mdl_pss_ode!(
                     end
 
                     for j in 1:p_unique
-                        y_past[i, j] = saved_values_unique.saveval[index-T_ini+i-1][indexes_saved_outputs[j]]
+                        index_saved = index-T_ini+i-1
+
+                        if length(saved_values_unique.saveval) < index_saved
+                            y_past[i, j] = saved_values_unique.saveval[index_saved - 1][indexes_saved_outputs[j]]
+                        else
+                            y_past[i, j] = saved_values_unique.saveval[index_saved][indexes_saved_outputs[j]]
+                        end
                     end
                 end
 
