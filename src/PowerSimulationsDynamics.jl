@@ -196,9 +196,9 @@ T_unique = 0
 length_vector_unique = 0
 H_u_unique = Vector{Matrix{Float64}}(undef, 0)
 H_y_unique = Vector{Matrix{Float64}}(undef, 0)
-u_unique = Matrix{Float64}(undef, 0, 0)  # All inputs
-vec_bool_index_unique = Vector{Bool}(undef, 0)
-saved_values_unique = DiffEqCallbacks.SavedValues(
+u_unique = Matrix{Float64}(undef, 0, 0)  # All inputs  # global
+vec_bool_index_unique = Vector{Bool}(undef, 0)  # global
+saved_values_unique = DiffEqCallbacks.SavedValues(  # global
                           Float64,  # Time
                           Tuple{
                               Float64,  # P_7_8
