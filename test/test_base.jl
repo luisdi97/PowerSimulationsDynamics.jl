@@ -87,7 +87,7 @@ end
             b_sys = get_component(Bus, omib_sys, get_name(b))
             b_file = get_component(Bus, omib_sys_file, get_name(b))
             @test get_angle(b) == get_angle(b_sys)
-            if get_bustype(b) == PSY.BusTypes.REF
+            if get_bustype(b) == PSY.ACBusTypes.REF
                 @test get_angle(b) == get_angle(b_file)
             else
                 @test get_angle(b) != get_angle(b_file)
@@ -285,7 +285,7 @@ end
     gen = PSY.get_component(ThermalStandard, sys, "generator-102-1")
     PSY.set_available!(gen, false)
     b = PSY.get_component(Bus, sys, "BUS 2")
-    PSY.set_bustype!(b, PSY.BusTypes.PQ)
+    PSY.set_bustype!(b, PSY.ACBusTypes.PQ)
     #Create Simulation without Gen 2 starting from steady-state with Gen 2
     sim_trip_gen = Simulation(
         ResidualModel,

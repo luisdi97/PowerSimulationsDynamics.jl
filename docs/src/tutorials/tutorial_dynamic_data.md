@@ -59,7 +59,7 @@ This system does not have an injection device in bus 1 (the reference bus).
 We can add a source with small impedance directly as follows:
 
 ```@repl dyn_data
-slack_bus = [b for b in get_components(Bus, sys) if get_bustype(b) == BusTypes.REF][1]
+slack_bus = [b for b in get_components(Bus, sys) if get_bustype(b) == ACBusTypes.REF][1]
 inf_source = Source(
     name = "InfBus", #name
     available = true, #availability
@@ -150,7 +150,7 @@ In order to do so, we will parse the following `ThreebusInverter.raw` network:
 
 ```@repl dyn_data
 threebus_sys = build_system(PSIDSystems, "3 Bus Inverter Base")
-slack_bus = first(get_components(x -> get_bustype(x) == BusTypes.REF, Bus, threebus_sys))
+slack_bus = first(get_components(x -> get_bustype(x) == ACBusTypes.REF, Bus, threebus_sys))
 inf_source = Source(
     name = "InfBus", #name
     available = true, #availability
